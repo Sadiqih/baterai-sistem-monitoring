@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<style>
+  body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at top, #00111f 0%, #000915 100%);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #c8e7ff;
+    overflow: hidden;
+  }
+
+  h1 {
+    color: #00c8ff;
+    text-shadow: 0 0 25px #00baff, 0 0 50px #0078ff;
+    margin-bottom: 20px;
+    font-size: 2em;
+    letter-spacing: 1px;
+  }
+
+  .battery-container {
+    position: relative;
+    width: 280px;
+    height: 120px;
+    border: 3px solid rgba(0,200,255,0.9);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 0 20px rgba(0,180,255,0.5), inset 0 0 25px rgba(0,120,255,0.2);
+    background: rgba(0,30,50,0.6);
+  }
+
+  .battery-level {
+    height: 100%;
+    width: 0%;
+    transition: width 0.8s ease, background 0.8s ease;
+    background: linear-gradient(90deg, #0088ff, #00ffff);
+    box-shadow: inset 0 0 30px rgba(0,255,255,0.4), 0 0 25px rgba(0,180,255,0.6);
+  }
+
+  .battery-tip {
+    width: 25px;
+    height: 50px;
+    background: #00baff;
+    position: absolute;
+    right: -25px;
+    top: 35px;
+    border-radius: 6px;
+    box-shadow: 0 0 15px rgba(0,200,255,0.7);
+  }
+
+  .voltage {
+    margin-top: 20px;
+    font-size: 1.4em;
+    text-shadow: 0 0 10px #00e5ff;
+  }
+
+  .status {
+    font-size: 1.6em;
+    margin-top: 5px;
+    font-weight: bold;
+    text-shadow: 0 0 15px #00ffff;
+  }
+
+  .mqtt-status {
+    margin-top: 25px;
+    font-size: 0.9em;
+    color: #66ccff;
+    text-shadow: 0 0 5px #0078ff;
+  }
+
+  /* Efek animasi cahaya mengalir di dalam bar */
+  .glow {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: flow 3s infinite;
+  }
+
+  @keyframes flow {
+    0% { left: -100%; }
+    50% { left: 150%; }
+    100% { left: -100%; }
+  }
+</style>
+</head>
+<body>
+
+
+
+<div class="battery-container">
+  <div class="battery-level" id="batteryLevel">
+    <div class="glow"></div>
+  </div>
+  <div class="battery-tip"></div>
+</div>
+
+<div class="voltage" id="voltageText">Voltage: -- V</div>
+<div class="status" id="statusText">Status: --</div>
+<div class="mqtt-status" id="mqttStatus">Connecting to MQTT...</div>
+
+<script>
+  // Konfigurasi MQTT sama seperti ESP32 kamu
+  const broker = "wss://f89f938116df4dee81d5215df5ba4782.s1.eu.hivemq.cloud:8884/mqtt";
+  const options = {
+    username: "intelligent",
+    password: "Penem2018",
+    reconnectPeriod: 3000,
+    protocolVersion: 4
+  };
+
+  const client = mqtt.connect(broker, options);
+  const mqttStatus = document.getElementById("mqttStatus");
+  const voltageText = document.getElementById("voltageText");
+  const statusText = document.getElementById("statusText");
+  const batteryLevel = document.getElementById("batteryLevel");
+
+  client.on("connect", () => {
+    mqttStatus.textContent = "✅ Connected to MQTT broker";
+    client.subscribe("baterai");
+  });
+
+  client.on("reconnect", () => mqttStatus.textContent = "Reconnecting...");
+  client.on("error", err => mqttStatus.textContent = "❌ Error: " + err.message);
+
+  client.on("message", (topic, message) => {
+    try {
+      const data = JSON.parse(message.toString());
+      const voltage = parseFloat(data.tegangan);
+      voltageText.textContent = `Voltage: ${voltage.toFixed(2)} V`;
+
+      let status = "";
+      let percent = 0;
+      let gradient = "";
+
+      if (voltage >= 12.5) {
+        status = "FULL";
+        percent = 100;
+        gradient = "linear-gradient(90deg, #00ffcc, #00bfff)";
+        statusText.style.color = "#00ffff";
+      } else if (voltage <= 11.0) {
+        status = "LOW";
+        percent = ((voltage - 10.5) / (12.5 - 10.5)) * 100;
+        if (percent < 0) percent = 0;
+        gradient = "linear-gradient(90deg, #ff0033, #ff6699)";
+        statusText.style.color = "#ff5577";
+      } else {
+        status = "MEDIUM";
+        percent = ((voltage - 11.0) / (12.5 - 11.0)) * 100;
+        gradient = "linear-gradient(90deg, #00baff, #00ffff)";
+        statusText.style.color = "#00aaff";
+      }
+
+      batteryLevel.style.width = percent + "%";
+      batteryLevel.style.background = gradient;
+      statusText.textContent = `Status: ${status}`;
+    } catch (e) {
+      console.error("Invalid MQTT message:", e);
+    }
+  });
+</script>
+
+</body>
+</html>
