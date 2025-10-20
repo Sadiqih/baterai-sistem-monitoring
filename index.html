@@ -15,15 +15,23 @@
     justify-content: center;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     color: #c8e7ff;
+    background: radial-gradient(circle at center, #001a33 0%, #000814 100%);
     overflow: hidden;
   }
 
   h1 {
     color: #00c8ff;
     text-shadow: 0 0 25px #00baff, 0 0 50px #0078ff;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
     font-size: 2em;
     letter-spacing: 1px;
+  }
+
+  .battery-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 35px;
   }
 
   .battery-container {
@@ -56,27 +64,25 @@
     box-shadow: 0 0 15px rgba(0,200,255,0.7);
   }
 
-  .voltage {
-    margin-top: 20px;
-    font-size: 1.4em;
+  .voltage, .status {
+    font-size: 1.3em;
     text-shadow: 0 0 10px #00e5ff;
+    margin-top: 10px;
+    text-align: center;
   }
 
   .status {
-    font-size: 1.6em;
-    margin-top: 5px;
     font-weight: bold;
-    text-shadow: 0 0 15px #00ffff;
+    font-size: 1.5em;
   }
 
   .mqtt-status {
-    margin-top: 25px;
+    margin-top: 30px;
     font-size: 0.9em;
     color: #66ccff;
     text-shadow: 0 0 5px #0078ff;
   }
 
-  /* Efek animasi cahaya mengalir di dalam bar */
   .glow {
     position: absolute;
     top: 0;
@@ -92,25 +98,49 @@
     50% { left: 150%; }
     100% { left: -100%; }
   }
+
+  .battery-label {
+    margin-bottom: 8px;
+    font-size: 1.2em;
+    color: #00c8ff;
+    text-shadow: 0 0 10px #00c8ff;
+  }
 </style>
 </head>
 <body>
 
+<h1>🔋 Monitoring Dua Baterai</h1>
 
+<div class="battery-wrapper">
 
-<div class="battery-container">
-  <div class="battery-level" id="batteryLevel">
-    <div class="glow"></div>
+  <!-- Baterai 1 -->
+  <div class="battery-label">Baterai 1</div>
+  <div class="battery-container">
+    <div class="battery-level" id="batteryLevel1">
+      <div class="glow"></div>
+    </div>
+    <div class="battery-tip"></div>
   </div>
-  <div class="battery-tip"></div>
+  <div class="voltage" id="voltageText1">Voltage: -- V</div>
+  <div class="status" id="statusText1">Status: --</div>
+
+  <!-- Baterai 2 -->
+  <div class="battery-label">Baterai 2</div>
+  <div class="battery-container">
+    <div class="battery-level" id="batteryLevel2">
+      <div class="glow"></div>
+    </div>
+    <div class="battery-tip"></div>
+  </div>
+  <div class="voltage" id="voltageText2">Voltage: -- V</div>
+  <div class="status" id="statusText2">Status: --</div>
+
 </div>
 
-<div class="voltage" id="voltageText">Voltage: -- V</div>
-<div class="status" id="statusText">Status: --</div>
 <div class="mqtt-status" id="mqttStatus">Connecting to MQTT...</div>
 
 <script>
-  // Konfigurasi MQTT sama seperti ESP32 kamu
+  // MQTT konfigurasi sesuai broker HiveMQ Cloud kamu
   const broker = "wss://f89f938116df4dee81d5215df5ba4782.s1.eu.hivemq.cloud:8884/mqtt";
   const options = {
     username: "intelligent",
@@ -121,13 +151,17 @@
 
   const client = mqtt.connect(broker, options);
   const mqttStatus = document.getElementById("mqttStatus");
-  const voltageText = document.getElementById("voltageText");
-  const statusText = document.getElementById("statusText");
-  const batteryLevel = document.getElementById("batteryLevel");
+
+  const vText1 = document.getElementById("voltageText1");
+  const vText2 = document.getElementById("voltageText2");
+  const sText1 = document.getElementById("statusText1");
+  const sText2 = document.getElementById("statusText2");
+  const level1 = document.getElementById("batteryLevel1");
+  const level2 = document.getElementById("batteryLevel2");
 
   client.on("connect", () => {
     mqttStatus.textContent = "✅ Connected to MQTT broker";
-    client.subscribe("baterai");
+    client.subscribe("baterai/dua");
   });
 
   client.on("reconnect", () => mqttStatus.textContent = "Reconnecting...");
@@ -136,38 +170,46 @@
   client.on("message", (topic, message) => {
     try {
       const data = JSON.parse(message.toString());
-      const voltage = parseFloat(data.tegangan);
-      voltageText.textContent = `Voltage: ${voltage.toFixed(2)} V`;
+      const v1 = parseFloat(data.baterai_1.vin);
+      const v2 = parseFloat(data.baterai_2.vin);
 
-      let status = "";
-      let percent = 0;
-      let gradient = "";
-
-      if (voltage >= 12.5) {
-        status = "FULL";
-        percent = 100;
-        gradient = "linear-gradient(90deg, #00ffcc, #00bfff)";
-        statusText.style.color = "#00ffff";
-      } else if (voltage <= 11.0) {
-        status = "LOW";
-        percent = ((voltage - 10.5) / (12.5 - 10.5)) * 100;
-        if (percent < 0) percent = 0;
-        gradient = "linear-gradient(90deg, #ff0033, #ff6699)";
-        statusText.style.color = "#ff5577";
-      } else {
-        status = "MEDIUM";
-        percent = ((voltage - 11.0) / (12.5 - 11.0)) * 100;
-        gradient = "linear-gradient(90deg, #00baff, #00ffff)";
-        statusText.style.color = "#00aaff";
-      }
-
-      batteryLevel.style.width = percent + "%";
-      batteryLevel.style.background = gradient;
-      statusText.textContent = `Status: ${status}`;
+      updateBatteryDisplay(v1, vText1, sText1, level1);
+      updateBatteryDisplay(v2, vText2, sText2, level2);
     } catch (e) {
       console.error("Invalid MQTT message:", e);
     }
   });
+
+  // Fungsi update status dan warna baterai
+  function updateBatteryDisplay(voltage, voltageText, statusText, batteryLevel) {
+    voltageText.textContent = `Voltage: ${voltage.toFixed(2)} V`;
+
+    let status = "";
+    let percent = 0;
+    let gradient = "";
+
+    if (voltage >= 12.5) {
+      status = "FULL";
+      percent = 100;
+      gradient = "linear-gradient(90deg, #00ffcc, #00bfff)";
+      statusText.style.color = "#00ffff";
+    } else if (voltage <= 11.0) {
+      status = "LOW";
+      percent = ((voltage - 10.5) / (12.5 - 10.5)) * 100;
+      if (percent < 0) percent = 0;
+      gradient = "linear-gradient(90deg, #ff0033, #ff6699)";
+      statusText.style.color = "#ff5577";
+    } else {
+      status = "MEDIUM";
+      percent = ((voltage - 11.0) / (12.5 - 11.0)) * 100;
+      gradient = "linear-gradient(90deg, #00baff, #00ffff)";
+      statusText.style.color = "#00aaff";
+    }
+
+    batteryLevel.style.width = percent + "%";
+    batteryLevel.style.background = gradient;
+    statusText.textContent = `Status: ${status}`;
+  }
 </script>
 
 </body>
