@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
   body {
@@ -31,15 +30,22 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 35px;
+    gap: 25px;
+  }
+
+  .battery-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
   }
 
   .battery-container {
     position: relative;
-    width: 280px;
-    height: 120px;
+    width: 260px;
+    height: 80px;
     border: 3px solid rgba(0,200,255,0.9);
-    border-radius: 16px;
+    border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 0 20px rgba(0,180,255,0.5), inset 0 0 25px rgba(0,120,255,0.2);
     background: rgba(0,30,50,0.6);
@@ -54,26 +60,41 @@
   }
 
   .battery-tip {
-    width: 25px;
-    height: 50px;
+    width: 18px;
+    height: 35px;
     background: #00baff;
     position: absolute;
-    right: -25px;
-    top: 35px;
-    border-radius: 6px;
-    box-shadow: 0 0 15px rgba(0,200,255,0.7);
+    right: -18px;
+    top: 22px;
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(0,200,255,0.7);
   }
 
-  .voltage, .status {
-    font-size: 1.3em;
-    text-shadow: 0 0 10px #00e5ff;
-    margin-top: 10px;
-    text-align: center;
+  .battery-status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  .battery-label {
+    font-size: 1.2em;
+    color: #00c8ff;
+    text-shadow: 0 0 10px #00c8ff;
+    margin-bottom: 4px;
+  }
+
+  .voltage {
+    font-size: 1.1em;
+    color: #c8e7ff;
+    text-shadow: 0 0 8px #00baff;
   }
 
   .status {
     font-weight: bold;
-    font-size: 1.5em;
+    font-size: 1.3em;
+    margin-top: 4px;
+    text-shadow: 0 0 8px #00e5ff;
   }
 
   .mqtt-status {
@@ -99,12 +120,6 @@
     100% { left: -100%; }
   }
 
-  .battery-label {
-    margin-bottom: 8px;
-    font-size: 1.2em;
-    color: #00c8ff;
-    text-shadow: 0 0 10px #00c8ff;
-  }
 </style>
 </head>
 <body>
@@ -113,34 +128,42 @@
 
 <div class="battery-wrapper">
 
-  <!-- Baterai 1 -->
-  <div class="battery-label">Baterai 1</div>
-  <div class="battery-container">
-    <div class="battery-level" id="batteryLevel1">
-      <div class="glow"></div>
+  <!-- Baris Baterai 1 -->
+  <div class="battery-row">
+    <div class="battery-container">
+      <div class="battery-level" id="batteryLevel1">
+        <div class="glow"></div>
+      </div>
+      <div class="battery-tip"></div>
     </div>
-    <div class="battery-tip"></div>
+    <div class="battery-status">
+      <div class="battery-label">Baterai 1</div>
+      <div class="voltage" id="voltageText1">Voltage: -- V</div>
+      <div class="status" id="statusText1">Status: --</div>
+    </div>
   </div>
-  <div class="voltage" id="voltageText1">Voltage: -- V</div>
-  <div class="status" id="statusText1">Status: --</div>
 
-  <!-- Baterai 2 -->
-  <div class="battery-label">Baterai 2</div>
-  <div class="battery-container">
-    <div class="battery-level" id="batteryLevel2">
-      <div class="glow"></div>
+  <!-- Baris Baterai 2 -->
+  <div class="battery-row">
+    <div class="battery-container">
+      <div class="battery-level" id="batteryLevel2">
+        <div class="glow"></div>
+      </div>
+      <div class="battery-tip"></div>
     </div>
-    <div class="battery-tip"></div>
+    <div class="battery-status">
+      <div class="battery-label">Baterai 2</div>
+      <div class="voltage" id="voltageText2">Voltage: -- V</div>
+      <div class="status" id="statusText2">Status: --</div>
+    </div>
   </div>
-  <div class="voltage" id="voltageText2">Voltage: -- V</div>
-  <div class="status" id="statusText2">Status: --</div>
 
 </div>
 
 <div class="mqtt-status" id="mqttStatus">Connecting to MQTT...</div>
 
 <script>
-  // MQTT konfigurasi sesuai broker HiveMQ Cloud kamu
+  // MQTT konfigurasi (sama seperti sebelumnya)
   const broker = "wss://f89f938116df4dee81d5215df5ba4782.s1.eu.hivemq.cloud:8884/mqtt";
   const options = {
     username: "intelligent",
